@@ -27,8 +27,25 @@ Some prompts to answer:
 - How does your `Recommender` compute a score for each song
 - How do you choose which songs to recommend
 
-You can include a simple diagram or bullet list if helpful.
+- Right now my system is going to use these features: Genre, Mood, Energy, Tempo-BPM. I believe that these are the most important ones to assess the next sleection that would fit the user's expectation. 
+- My recommended will compute the score for each song to figure out if the song would fit the user's score, and it is determined in this pattern:
++ Energy will remain unchanged in 0-1.
++ Tempo-BPM will be converted to the range between 0-1 using Min-Max. The tempo will then be compared to user target using abs(tempo_norm - u_tempo) to get the tempo similarity.
++ Mood and Energy will be counted as categorical similarity: genre_match = 1 if song.genre == user.genre_preference else 0
+mood_match = 1 if song.mood == user.mood_preference else 0
++ The weighted final score will be: final_score = w_genre * genre_match + w_mood * mood_match + w_energy * energy_similarity + w_tempo * tempo_similarity + ..
++ The weights will be determine manually for now, and it will be w_genre = 0.4, w_mood = 0.3, w_energy = 0.2, w_tempo = 0.1
+=> Compute weighted final score: 0.4·genre + 0.3·mood + 0.2·energy + 0.1·tempo
 
+- You will load the songs, and if there are still songs that needs to be calculated, you run that formula. If all songs are finished, we will sorts all songs by score from highest -> lowest, and then return the "Top K Songs" as recommendations.
+
+- In my simulation, UserProfile will use these: favorite_genre: str, favorite_mood: str, target_energy: float
+- Song will use : genre: str, mood: str, energy: float, tempo_bpm: float
+
+
+Trade-off:
+- Genre and Mood will likely to dominate everything, which means that users may get more of the same genre, even if a certain song matches their energy perfectly. 
+- Also, genre and mood are either 0 or 1, which means that a near-miss genre (indie-pop vs pop) is treated the same as a completely wrong genre (metal vs pop)
 ---
 
 ## Getting Started
@@ -63,6 +80,12 @@ pytest
 ```
 
 You can add more tests in `tests/test_recommender.py`.
+
+---
+
+## Sample Output
+
+![Terminal output showing top 5 recommendations](assets/terminal_output.png)
 
 ---
 
