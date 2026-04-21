@@ -17,3 +17,35 @@ id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness
 16,Velvet Nights,Smooth Soul,r&b,sensual,0.58,92,0.74,0.77,0.35
 17,Whispers Through the Forest,Acoustic Trails,folk,contemplative,0.48,88,0.62,0.52,0.93
 18,Broken Heart Blues,Blues Keepers,blues,melancholic,0.52,96,0.40,0.58,0.82
+19,Angel Wings Remix,NightcoreX,nightcore,euphoric,0.92,175,0.88,0.88,0.05
+20,Virtual Star,Project DIVA,vocaloid,happy,0.85,138,0.90,0.82,0.10
+21,Human Drum Machine,BeatboxKing,beatbox,confident,0.88,120,0.72,0.85,0.60
+22,Wet Hands (Lofi Remix),Pixel Dreams,minecraft lofi,peaceful,0.30,70,0.75,0.45,0.80
+23,Deep Focus,Study Waves,study,focused,0.32,75,0.58,0.38,0.85
+24,Yoru no Umi,Hikari Sato,j-pop,nostalgic,0.68,110,0.70,0.72,0.42
+25,Mua He Ruc Ro,Thanh Nguyen,v-pop,happy,0.74,120,0.82,0.78,0.30
+26,Drift Season,PhonkMaster,phonk,aggressive,0.86,130,0.55,0.80,0.15
+27,Electric Pulse,Drop Zone,edm,euphoric,0.94,140,0.88,0.95,0.02
+28,Concrete Jungle,Bass Protocol,drum and bass,intense,0.90,160,0.50,0.78,0.05
+29,Lift Every Voice,Glory Choir,gospel,happy,0.78,100,0.92,0.70,0.50
+30,Island Breeze,Roots Collective,reggae,relaxed,0.60,90,0.78,0.75,0.55
+31,Cafe do Brasil,Samba Soul,bossa nova,relaxed,0.42,88,0.76,0.65,0.80
+32,Neon Idol,StarGroup,k-pop,confident,0.88,128,0.85,0.90,0.08
+33,Hustle Season,ATL Vibes,trap,confident,0.82,140,0.60,0.85,0.10
+34,Broken Compass,The Static Lines,indie rock,moody,0.70,115,0.45,0.63,0.38
+35,Heart of Gold,Soulful Jones,soul,sensual,0.55,88,0.75,0.72,0.55
+36,Fuego en la Pista,Salsa Caliente,latin,euphoric,0.85,108,0.89,0.92,0.35
+37,Green Fields Forever,The Wandering Pipes,celtic,nostalgic,0.60,120,0.68,0.70,0.78
+38,Sunday Afternoon,Mellow Keys,chillhop,chill,0.38,82,0.64,0.65,0.60
+39,Void Between Stars,Erebus,dark ambient,contemplative,0.22,60,0.25,0.28,0.75
+40,Cloud Surfer,Flux Pavilion Jr,future bass,euphoric,0.89,150,0.92,0.88,0.03
+41,Fireplace Serenade,Clara June,acoustic pop,happy,0.55,105,0.80,0.68,0.88
+42,Cold Streets,UK Blade,drill,aggressive,0.84,142,0.42,0.78,0.05
+43,Eternal Flow,Serenity Waves,new age,peaceful,0.25,65,0.70,0.30,0.90
+44,Lagos Summer,Afro Kings,afrobeats,happy,0.82,112,0.88,0.90,0.28
+45,Euphoria Gate,Aryon,trance,euphoric,0.90,138,0.85,0.88,0.02
+46,Mountains of Silence,Echo and the Void,post-rock,contemplative,0.65,95,0.50,0.42,0.45
+47,Final Battle Theme,Epic Score,ost,intense,0.88,140,0.55,0.55,0.20
+48,Hollow Hearts,Pale Signal,alternative,melancholic,0.62,108,0.40,0.58,0.42
+49,Tokyo After Midnight,Yuki Tanaka,city pop,nostalgic,0.65,102,0.72,0.70,0.40
+50,Cigarettes and Starlight,The Forgotten Youth,emo,melancholic,0.72,130,0.35,0.60,0.45
