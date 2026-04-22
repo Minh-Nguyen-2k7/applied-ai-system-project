@@ -1,4 +1,9 @@
-# 🎵 MoodConstructor
+# Original Project: 
+> VibeFinder 1.0
+- This was the original project from module 3, with its purpose being able to suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. This was still considered a prototype due to many limits that it shows in order to recommend a song.
+
+# New Improvement: 
+> Introduce: 🎵 MoodConstructor
 
 ## Project Summary
 
@@ -42,6 +47,30 @@ Where:
 - **Near-miss fix**: "pop" and "indie-pop" now score ~0.8 instead of 0
 - **Adaptive weights**: Weights adjust per song based on user context
 - **Richer descriptions**: Vibe descriptions enable LLM reasoning
+
+---
+
+## Design Decisions
+
+### Why Not Static Weights?
+
+The v1 formula used hardcoded weights — genre always 40%, mood always 30%, energy always 20%, tempo always 10% — regardless of what song was being scored or what the user actually wanted. Testing revealed this was too rigid: a calm lofi song and a festival anthem were being judged by the exact same formula, even though "genre" matters a lot more for some songs and "energy" matters a lot more for others. The weights felt arbitrary and produced a filter bubble — the system always surfaced the same genre the user already liked, never helping them discover anything new.
+
+The decision to replace static weights with **LLM-generated dynamic weights** came from wanting the scoring to feel contextually aware. By feeding the user's mood and the song's vibe description to GPT-4o-mini and asking it to decide which features should matter most for *this specific pairing*, the weights now shift per song. A meditation track gets a heavier energy weight; a dance anthem gets a heavier genre weight. The trade-off is cost and latency — every recommendation round calls the API once per song — but the fallback to default weights (0.4 / 0.3 / 0.2 / 0.1) ensures the app still works without a key.
+
+### Why Semantic Similarity for Genre and Mood?
+
+In v1, genre matching was binary — either the song's genre exactly matched the user's input, or it scored zero. This meant a user who wanted "pop" got nothing from an "indie pop" song, even though those two genres are musically adjacent. A user who wanted "chill" got zero from a "relaxed" song, even though those moods describe nearly the same feeling. The system was punishing songs for not using the exact same label, which felt wrong.
+
+The fix was to stop treating genre and mood as categories and start treating them as **text with meaning**. By encoding both the user's preference and the song's genre/mood into sentence embeddings (via `all-MiniLM-L6-v2`) and computing cosine similarity, "pop" vs "indie pop" now scores ~0.8, "chill" vs "relaxed" scores ~0.9, and truly unrelated pairs like "metal" vs "ambient" score near 0. Songs earn partial credit for being close, not just full credit or nothing. The trade-off is that the model must load on startup, adding a few seconds on first run.
+
+### Where Did RAG Come In?
+
+Even with dynamic weights and semantic similarity, there was still a problem: the LLM had no context about what a song actually *sounds like* when deciding how to weight it. Asking GPT-4o-mini to weigh a song it knows nothing about would just produce generic answers.
+
+The solution was to give each song a **vibe description** — a short natural language summary of its sound, energy, and feel (e.g., *"A chill lofi beat with relaxed energy and acoustic elements, ideal for late-night coding..."*). These descriptions act as a retrieved knowledge base: when scoring a song, the system retrieves that song's description and passes it directly into the LLM prompt alongside the user's mood. This is the RAG pattern — retrieve relevant context, then generate. The LLM can now reason about a specific song's character when deciding weights, rather than guessing blindly. The trade-off is that the descriptions were written by hand, so they reflect the catalog curator's interpretation of each song rather than objective musical analysis.
+
+---
 
 ## Getting Started
 
@@ -132,176 +161,127 @@ You can add more tests in `tests/test_recommender.py`.
 
 ---
 
-## Sample Output
+## Testing Summary
 
-![Terminal output showing top 5 recommendations](assets/terminal_output.png)
+### Unit Tests — What Passed
 
-### Profile Results
+Two unit tests in `tests/test_recommender.py` were run with `pytest` and both passed:
 
-**High-Energy Pop**
-![High-Energy Pop profile results](assets/profile_2.png)
+- **`test_recommend_returns_songs_sorted_by_score`** — Given a pop/happy/high-energy user profile and a two-song catalog (one pop, one lofi), the recommender correctly ranked the pop song first. This confirmed the scoring logic and the `Recommender.recommend()` method produce rankings in the right direction.
+- **`test_explain_recommendation_returns_non_empty_string`** — Confirmed that `explain_recommendation()` returns a non-empty string, verifying that score breakdowns are always generated and never silently empty.
 
-**Chill Lofi**
-![Chill Lofi profile results](assets/profile_3.png)
+### Interactive Tests — What Was Explored
 
-**Deep Intense Rock**
-![Deep Intense Rock profile results](assets/profile_4.png)
+`interactive_test.py` was used to explore three aspects of the system manually:
 
-**Conflicting: Lofi + High Energy (Edge Case)**
-![Conflicting Lofi High Energy profile results](assets/profile_5.png)
+**1. Semantic Similarity (Option 1)**
+This was the clearest success. Running genre and mood pairs against the catalog showed that the sentence-transformer model handled near-matches correctly — "pop" vs "indie pop" scored around 0.8, "chill" vs "relaxed" scored high, and unrelated pairs like "metal" vs "ambient" scored near 0. This directly fixed the binary matching failure from v1.
 
-**Unknown Genre — Classical (Edge Case)**
-![Unknown Genre Classical profile results](assets/profile_6.png)
+**2. Dynamic Weight Agent (Option 2)**
+This is where a key limitation surfaced. The OpenAI API key was not available during testing, so every call to `get_dynamic_weights()` silently fell back to the hardcoded defaults (genre=0.4, mood=0.3, energy=0.2, tempo=0.1). The interactive test confirmed this by printing `⚠ No API key found. Using default weights.` — meaning the LLM-generated weighting feature was never actually exercised. All weights during testing were static, making the "dynamic" part of the system untested in practice.
 
----
+**3. End-to-End Recommendations (Option 3)**
+Despite running on fallback weights, the recommendations still felt noticeably better than v1 — mostly because semantic similarity alone was doing a lot of work. Profiles like Pop/Happy and Lofi/Chill returned very strong top scores (0.98+), while niche genre profiles like New Age and Ambient returned lower scores (0.69–0.73), which honestly reflects that those genres have fewer catalog matches. Cross-genre edge cases like Ambient + Euphoric surfaced Trance and Electronic results instead of Ambient — the mood and energy similarity pulled in adjacent genres even when the genre label didn't match.
 
-## Experiments You Tried
+### What Was Learned
 
-Use this section to document the experiments you ran. For example:
-
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+The biggest takeaway was that **semantic similarity alone accounts for most of the quality improvement** over v1. The system worked well in testing even without a live LLM call, which suggests the design has a solid baseline. The dynamic weights, however, remain a hypothesis — the system was designed to adapt per song, but that behavior was never verified against an actual API response. If the LLM weights were tested, the expectation is that scores for niche-genre profiles (New Age, Ambient) would shift upward as the LLM deprioritizes genre weight in favor of mood and energy for those pairings.
 
 ---
 
-## Limitations and Risks
+## Sample Interactions
 
-Summarize some limitations of your recommender.
+### Pop · Happy · Energy 0.80
+Top result: **Sunrise City** by Neon Echo — Match Score **0.988**. The system surfaces pop and pop-adjacent tracks with happy moods and high energy, with the Vietnamese pop track "Mua He Ruc Ro" appearing at #2 thanks to semantic genre similarity.
 
-Examples:
+![Pop Happy High Energy results](assets/final_codepath_1.png)
 
-- It only works on a 50-song catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
+---
 
-You will go deeper on this in your model card.
+### New Age · Chill · Energy 0.55
+Top result: **Eternal Flow** by Serenity Waves — Match Score **0.699**. With a niche genre like New Age, the system falls back on mood and energy similarity, pulling in adjacent calm genres (Chillhop, Lofi) when exact genre matches are scarce.
+
+![New Age Chill results](assets/final_codepath_2.png)
+
+---
+
+### Ambient · Euphoric · Energy 0.80
+Top result: **Euphoria Gate** by Aryon — Match Score **0.734**. A cross-genre edge case: the mood (Euphoric) and energy (0.80) pull in Trance and Electronic despite the Ambient genre input, showing how dynamic LLM weights can shift priority toward mood when genre conflicts with energy.
+
+![Ambient Euphoric results](assets/final_codepath_3.png)
+
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    User([👤 User])
+
+    User -->|genre · mood · energy · k| UI
+
+    subgraph UI["🖥️ Streamlit UI — app.py"]
+        Sidebar[Sidebar Inputs]
+        Results[Song Cards + Score Breakdown]
+    end
+
+    subgraph DB["🗄️ Knowledge Base"]
+        JSON[(data/songs.json\n50 songs + vibe descriptions)]
+    end
+
+    subgraph Engine["⚙️ Recommender Engine — recommender.py"]
+        LoadSongs[load_songs]
+        RecommendSongs[recommend_songs\nloop over all 50 songs]
+
+        subgraph Scorer["score_song — per song"]
+            direction TB
+            DW[get_dynamic_weights\nOpenAI gpt-4o-mini]
+            ST[semantic_text_similarity\nSentenceTransformer\nall-MiniLM-L6-v2]
+            NS[Numeric Similarity\nenergy · tempo]
+            WS[Weighted Sum\nfinal score]
+
+            DW -->|W_genre · W_mood\nW_energy · W_tempo| WS
+            ST -->|genre_sim · mood_sim| WS
+            NS -->|energy_sim · tempo_sim| WS
+        end
+
+        TopK[Top-K Ranker\nsort by score ↓]
+    end
+
+    subgraph Fallback["🔁 Fallback"]
+        FW[Default Weights\n0.4 · 0.3 · 0.2 · 0.1]
+    end
+
+    JSON -->|song dicts| LoadSongs
+    LoadSongs --> RecommendSongs
+    Sidebar -->|user_prefs dict| RecommendSongs
+    RecommendSongs --> Scorer
+    Scorer --> TopK
+    TopK -->|top-k songs + reasons| Results
+    Results --> User
+
+    DW -. no API key .-> FW
+    FW -.-> WS
+```
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+### AI Does Not Have to Be Complex to Be Better
 
-[**Model Card**](model_card.md)
+The most surprising thing this project taught me was that the biggest quality improvement came from the simplest AI component. Swapping binary genre matching for sentence-transformer embeddings — a change that took about ten lines of code — made "pop" and "indie pop" feel related instead of completely alien to each other. That single change did more for recommendation quality than any amount of weight tuning. It made me realize that in AI systems, the representation of the problem often matters more than the sophistication of the model on top of it. The v1 system was failing not because the math was wrong, but because it was doing math on the wrong thing — treating genre labels as arbitrary IDs rather than words with meaning.
 
-### Profile Comparisons
+### The Gap Between Designed and Tested Is Real
 
-- **High-Energy Pop vs. Chill Lofi** — They are completely opposite top results. Pop profile surfaces fast happy songs, while lofi profile surfaces slow chill beats. Both score near-perfect (0.98–0.99) because all three key features aligned, confirming the scoring works as intended to the system.
+Building this project also made me understand something uncomfortable about AI development: a feature can be fully designed, correctly implemented, and never actually work in production — and the system will still run as if everything is fine. The LLM dynamic weight feature is a good example. The code is there, the prompt is there, the fallback is there, and the app shows no errors. But because the API key wasn't available during testing, every single recommendation was made with the same static fallback weights (0.4 / 0.3 / 0.2 / 0.1). The "AI" in the system was completely bypassed, and from the outside, nobody could tell. That is a real lesson about how AI systems can hide their own failures behind graceful degradation — which is good for reliability, but dangerous if you mistake "no errors" for "working correctly."
 
-- **High-Energy Pop vs. Deep Intense Rock** — Both want high energy, but the genre splits the rankings. Pop gets Sunrise City; Rock gets Storm Runner. Gym Hero appears in both top 3s because strong energy similarity bridges the genre gap when mood overlaps.
+### Weights Encode Assumptions, Not Truth
 
-- **Deep Intense Rock vs. Conflicting: Lofi + High Energy** — Rock profile scores 0.99; the conflicting profile peaks at 0.52. The genre weight forces lofi songs to the top even though none match the requested high energy, which expose the filter bubble problem directly.
+Working through the weight experiments from v1 into v2 made it clear that whoever sets the weights in a recommender is encoding their own assumptions about what music is. Saying genre is worth 40% is not a neutral technical decision — it is a statement that "you should mostly listen to what you already know." Lowering that weight to 20% and raising energy to 40% says something completely different: "how a song feels matters more than what genre it belongs to." Real apps like Spotify are making these same calls at massive scale, and those decisions shape what billions of people discover. Building even a small version of this made that feel less abstract and more like a genuine responsibility.
 
-- **Chill Lofi vs. Unknown Genre (Classical)** — Lofi gets near-perfect matches because the genre is well-represented. Classical is a bit weird: one real genre match, then falls back on mood alone, showing the system loses signal when a genre is rare.
+### Problem-Solving: Start From What Feels Wrong
 
-- **Conflicting: Lofi + High Energy vs. Unknown Genre (Classical)** — Both edge cases fail for different reasons: one has self-contradicting preferences, the other has an underrepresented genre. Neither user gets a truly satisfying recommendation.
-
-
----
-
-## 7. `model_card_template.md`
-
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
-
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
-
-## 1. Model Name
-
-Give your recommender a name, for example:
-
-> VibeFinder 1.0
+The whole process of this project — from v1 to MoodConstructor — started from two specific things that felt wrong: weights that never changed, and a genre system that punished songs for having slightly different labels. That frustration turned into two concrete solutions (LLM weighting, semantic embeddings), and those solutions then pulled in a third idea (RAG for vibe descriptions) as a necessary supporting piece. That chain — frustration → diagnosis → solution → supporting idea — is the clearest example of problem-solving I have gone through in this course. The lesson I take from it is that the best starting point for building something is not "what cool technology can I use" but "what specifically feels broken and why."
 
 ---
-
-## 2. Intended Use
-
-- What is this system trying to do
-- Who is it for
-
-Example:
-
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
-
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
-
----
-
-## 4. Data
-
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
-
