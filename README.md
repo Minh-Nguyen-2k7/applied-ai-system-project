@@ -159,6 +159,29 @@ pytest
 
 You can add more tests in `tests/test_recommender.py`.
 
+### Running the Interactive Test
+
+The interactive test lets you manually explore the recommender — test semantic similarity, inspect LLM-generated weights, and get recommendations from the terminal:
+
+```bash
+python interactive_test.py
+```
+
+You will see a menu with three options:
+
+```
+1. Test semantic similarity (genre/mood matching)
+2. Test dynamic weight agent (LLM-generated weights)
+3. Interactive recommendation (input your preferences)
+4. Exit
+```
+
+- **Option 1** — Enter a genre and mood to see how similar they are to every song in the catalog. Good for verifying that near-miss genres (e.g. "pop" vs "indie pop") score above 0 instead of being a hard miss.
+- **Option 2** — Enter a genre, mood, and energy level to see the weights the LLM assigns for a sample song. If no API key is set, it will print `⚠ No API key found` and show the fallback weights instead.
+- **Option 3** — Full end-to-end recommendation. Enter your preferences and get a ranked top-5 with score breakdowns.
+
+Input validation is built in — if you enter an unrecognized genre or mood, the system will warn you, show the closest catalog match, and let you swap or continue.
+
 ---
 
 ## Testing Summary
@@ -285,3 +308,5 @@ Working through the weight experiments from v1 into v2 made it clear that whoeve
 The whole process of this project — from v1 to MoodConstructor — started from two specific things that felt wrong: weights that never changed, and a genre system that punished songs for having slightly different labels. That frustration turned into two concrete solutions (LLM weighting, semantic embeddings), and those solutions then pulled in a third idea (RAG for vibe descriptions) as a necessary supporting piece. That chain — frustration → diagnosis → solution → supporting idea — is the clearest example of problem-solving I have gone through in this course. The lesson I take from it is that the best starting point for building something is not "what cool technology can I use" but "what specifically feels broken and why."
 
 ---
+### DEMO WALKTHROUGH:
+https://www.loom.com/share/a703a430c54147748baf5d67c52b6334

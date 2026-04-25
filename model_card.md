@@ -57,3 +57,37 @@ MoodConstructor v1.2.3.4
 ## 9. Personal Reflection  
 
 - Building this recommender makes me realize how hard it is for a recommender to truly capture the next recommender song for new user. The scoring systems are actually way harder than complex than I expected. Also users can have very weird preferences, such as a high-energy lofi song. Perhaps real apps like Spotify also have certain tradeoffs when they use many weighted scores, and they reflect the people's idea who built the system - not some objective truth about what music is good.
+
+---
+## THIS IS AFTER THE NEW IMPROVEMENT ON THE ORIGINAL MUSIC RECOMMENDER
+
+## 10. Limitations and Biases
+
+- **Small and subjective catalog.** With only 50 songs, the system cannot meaningfully serve users with niche tastes. Any genre with fewer than two or three entries will consistently produce weak recommendations, not because the scoring is broken but because there simply is not enough data to match against. The catalog also reflects one curator's taste — genres like Latin, Celtic, or Vocaloid are represented by a single song each, which creates an uneven playing field.
+- **Filter bubble by design.** Genre carries a 40% weight by default, which means the system pushes users toward what they already know. Someone who listens to pop will almost always see pop songs at the top, even if a song from another genre matches their energy and mood better. This is the same filter bubble problem that real platforms like Spotify have been criticized for.
+- **Vibe descriptions are hand-written opinions.** The natural language descriptions used by the LLM to reason about each song were written manually. They reflect one person's interpretation of what each song sounds like, not any objective musical analysis. If the description is misleading, the LLM will generate weights based on wrong context and the recommendation score for that song will be skewed.
+- **Genre and mood labels are lossy.** A single word like "chill" or "ambient" cannot fully describe how a song feels. Two songs can share the same mood label and sound completely different, but the system treats them as identical in that dimension. This is a fundamental limit of the categorical approach.
+
+---
+
+## 11. Potential Misuse and Prevention
+
+- **Misuse scenario.** While a 50-song classroom recommender is harmless on its own, the same architecture — weighted scoring, LLM-driven context, vibe descriptions — could be used at scale to deliberately push users toward certain artists, labels, or content. A bad vibe descriptions can artificially inflate scores for specific songs regardless of whether they actually match the user's preferences. The LLM trusts whatever description it receives without any fact-checking.
+- **Prevention.** For a production system, vibe descriptions should be generated from objective audio features (tempo, key, spectral content) rather than freeform text, so they cannot be manually input with bad intentions. The scoring weights should also be audited regularly to check whether the system is systematically over-recommending any particular artist or genre — the same diversity check that streaming platforms use internally. For this project specifically, the catalog is too small and too controlled for this to be a real risk.
+
+---
+
+## 12. What Surprised Me While Testing Reliability
+
+- **The system worked fine without the LLM.** The most surprising result from testing was that the recommendations were still reasonable even though the OpenAI API key was never actually active — every run used the fallback static weights (0.4 / 0.3 / 0.2 / 0.1). I expected the output to feel noticeably worse without the dynamic weights, but the semantic similarity component was doing enough work on its own that the results still felt meaningful. This made me realize the LLM feature is an enhancement, not a foundation.
+- **A placeholder looked like a real key.** During interactive testing, the terminal printed `✓ API Key loaded: sk-key-here...` — which appeared to confirm the LLM was active. In reality, the `.env` file contained a placeholder string (`sk-key-here`) that the system accepted as a valid key because it was non-empty. The OpenAI call then silently failed and fell back to defaults. The system gave no error and behaved exactly as if everything was working. This was a reliability blind spot: the code had a guardrail for a missing key but not for a fake one.
+- **Nonsense input produced silent results.** Before adding input validation, entering an unrecognized genre like "banana" or "asdfg" would cause the system to run without any warning. It would return songs with low but non-zero scores because the sentence-transformer still computed some similarity value. The output looked legitimate, which made the bad input invisible.
+
+---
+
+## 13. Collaboration with AI
+
+- **How AI was used.** Throughout this project, an AI assistant (Claude) was used for implementation tasks: rewriting the Streamlit UI, expanding the song catalog from 18 to 50 songs with vibe descriptions, fixing bugs, updating the README, and suggesting the input validation guardrail in `interactive_test.py`.
+- **One instance where AI was helpful.** When the `app.py` file from a different project (a number-guessing game) was brought in to serve as the Streamlit UI, the AI immediately identified that the file had nothing to do with music recommendations and needed to be fully rewritten rather than patched. It then built the correct UI from scratch by reading `recommender.py` to understand the actual data structures and function signatures. Without that catch, the app would have been broken from the start.
+- **One instance where AI was incorrect.** When first asked how to run the app, the AI gave the command `cd applied-ai-system-project && streamlit run src/app.py`, but the terminal was already inside the `applied-ai-system-project` directory. Running that command caused a "not recognized" error because `streamlit` was not on the system PATH. The AI had assumed a different working directory and had not accounted for the PATH issue. The correct command turned out to be `python -m streamlit run src/app.py`. It's a small mistake but still shows that AI is not always correct. 
+- **Takeaway.** AI assistance was most useful for mechanical, well-defined tasks like generating song data or fixing a known bug. It was less reliable for tasks that required knowing the specific state of the local environment, like the correct run command or whether a key was genuinely valid. Checking AI output before running it — especially for setup and environment commands — turned out to be important.
